@@ -1,0 +1,45 @@
+services:
+  base-de-datos:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: abigail
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?define DB_PASSWORD en el entorno}
+      POSTGRES_DB: abigail
+    volumes:
+      - datos_abigail:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U abigail"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # Sin "ports": la base no se expone fuera de la red interna de Docker.
+    networks: [interna]
+
+  api:
+    build: .
+    environment:
+      ENTORNO: ${ENTORNO:-desarrollo}
+      CLAVE_MAESTRA: ${CLAVE_MAESTRA:?define CLAVE_MAESTRA en el entorno}
+      DATABASE_URL: postgresql+psycopg2://abigail:${DB_PASSWORD}@base-de-datos:5432/abigail
+      ADMIN_USUARIO: ${ADMIN_USUARIO:-admin}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      CABECERA_IP_CONFIABLE: X-Forwarded-For
+    depends_on:
+      base-de-datos:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    networks: [interna]
+
+volumes:
+  datos_abigail:
+
+networks:
+  interna:

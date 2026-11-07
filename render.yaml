@@ -1,0 +1,46 @@
+# Plano de despliegue para Render.
+#
+# Con este archivo en la raíz del repositorio, Render crea el servicio web y
+# la base de datos y genera las claves por su cuenta: no hay que escribir
+# ningún ajuste a mano.
+#
+#   Render → New → Blueprint → elegir el repositorio → Apply
+#
+# La contraseña de administración se genera sola; se consulta después en
+# Dashboard → abigail-partidas → Environment → ADMIN_PASSWORD.
+
+databases:
+  - name: abigail-bd
+    databaseName: abigail
+    user: abigail
+    plan: free          # Atención: el plan gratuito de Render se borra a los
+                        # 30 días. Para que dure, cámbialo a «basic-256mb».
+
+services:
+  - type: web
+    name: abigail-partidas
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free          # El plan gratuito se duerme tras 15 minutos sin uso
+                        # y tarda unos segundos en despertar.
+    region: oregon
+    branch: main
+    healthCheckPath: /salud
+    autoDeploy: true
+    envVars:
+      - key: ENTORNO
+        value: produccion
+      - key: CLAVE_MAESTRA
+        generateValue: true     # 64+ caracteres aleatorios, creados por Render
+      - key: ADMIN_USUARIO
+        value: admin
+      - key: ADMIN_PASSWORD
+        generateValue: true     # se consulta en el panel tras el despliegue
+      - key: DATABASE_URL
+        fromDatabase:
+          name: abigail-bd
+          property: connectionString
+      - key: CABECERA_IP_CONFIABLE
+        value: X-Forwarded-For
+      - key: ORIGENES_PERMITIDOS
+        value: "[]"             # el juego no es un navegador: no necesita CORS

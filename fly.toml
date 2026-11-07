@@ -1,0 +1,51 @@
+# Despliegue en Fly.io con SQLite sobre un volumen persistente.
+#
+# Es la opción que no caduca: no hay base de datos aparte, los datos viven en
+# un archivo dentro del volumen y la máquina más pequeña cuesta unos tres
+# dólares al mes.
+#
+#   fly launch --no-deploy --copy-config
+#   fly volumes create datos_abigail --size 1 --region mia
+#   fly secrets set CLAVE_MAESTRA=$(python -c "import secrets;print(secrets.token_hex(48))")
+#   fly secrets set ADMIN_PASSWORD='una-contraseña-larga-tuya'
+#   fly deploy
+
+app = "abigail-partidas"
+primary_region = "mia"          # Miami: el más cercano a Guatemala
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  ENTORNO = "produccion"
+  DATABASE_URL = "sqlite:////datos/abigail.db"
+  ADMIN_USUARIO = "admin"
+  CABECERA_IP_CONFIABLE = "Fly-Client-IP"
+  PORT = "8000"
+
+[[mounts]]
+  source = "datos_abigail"
+  destination = "/datos"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 1      # una siempre encendida: sin arranques en frío
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 80
+    hard_limit = 120
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "15s"
+    method = "GET"
+    path = "/salud"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
