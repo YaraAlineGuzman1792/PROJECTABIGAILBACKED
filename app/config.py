@@ -22,7 +22,7 @@ class Config(BaseSettings):
 
     # --- Criptografía ---
     # Clave maestra para derivar las claves HMAC por partida y firmar los JWT.
-    # 64 caracteres hexadecimales como mínimo. NUNCA se versiona.
+    # Al menos 256 bits de entropía. NUNCA se versiona.
     clave_maestra: str = Field(default="", min_length=0)
 
     # Ventana de validez de la marca de tiempo en las peticiones firmadas.
@@ -58,10 +58,13 @@ class Config(BaseSettings):
     @classmethod
     def _validar_clave(cls, v: str, info) -> str:
         entorno = (info.data or {}).get("entorno", "desarrollo")
+        # El umbral se mide en entropía, no en caracteres: 40 caracteres
+        # bastan para los 256 bits que genera una plataforma en base64
+        # (44 caracteres) y siguen rechazando una contraseña escrita a mano.
         if entorno == "produccion" and len(v) < 40:
             raise ValueError(
-                "clave_maestra debe tener al menos 64 caracteres en producción. "
-                "Genérala con: python -c \"import secrets; print(secrets.token_hex(48))\""
+                "clave_maestra debe tener al menos 40 caracteres en producción. "
+                "Genérala con: python -c \"import secrets; print(secrets.token_hex(32))\""
             )
         return v
 

@@ -13,10 +13,19 @@ from .models import Base
 _config = obtener_config()
 _es_sqlite = _config.database_url.startswith("sqlite")
 
-# Algunas plataformas entregan la URL con el esquema antiguo de Heroku.
+# Se fija el driver a mano en lugar de dejar que SQLAlchemy elija.
+#
+# Hacen falta las dos reescrituras. «postgres://» es el esquema antiguo que
+# todavía entregan algunas plataformas y que SQLAlchemy ya no reconoce.
+# «postgresql://» sí lo reconoce, pero desde SQLAlchemy 2.1 lo resuelve a
+# psycopg 3, y el driver que se instala aquí es psycopg2: sin esta línea, un
+# despliegue contra PostgreSQL muere al importar con «No module named
+# psycopg». Es la forma que entrega Render.
 _url = _config.database_url
-if _url.startswith("postgres://"):
-    _url = _url.replace("postgres://", "postgresql+psycopg2://", 1)
+for _viejo in ("postgres://", "postgresql://"):
+    if _url.startswith(_viejo):
+        _url = "postgresql+psycopg2://" + _url[len(_viejo):]
+        break
 
 if _es_sqlite:
     # El archivo vive en una carpeta propia para poder montarla como volumen.

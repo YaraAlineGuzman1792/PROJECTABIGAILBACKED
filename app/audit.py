@@ -56,9 +56,12 @@ def registrar(bd: Session, evento: str, *, sesion_id: str | None = None,
         severidad=severidad,
         detalle=detalle,
         hash_previo=hash_previo,
+        # Se firma la fecha ya normalizada a UTC, la misma forma que usará
+        # verificar_cadena al releerla. Aquí es una conversión vacía, pero
+        # deja las dos mitades escritas de la misma manera.
         hash_entrada=_hash_entrada(secuencia_previa, hash_previo, evento,
                                    sesion_id, severidad, detalle,
-                                   momento.isoformat()),
+                                   como_utc(momento).isoformat()),
     )
     bd.add(entrada)
     bd.flush()

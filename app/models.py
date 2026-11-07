@@ -28,13 +28,23 @@ def nuevo_id() -> str:
 def como_utc(valor: datetime | None) -> datetime | None:
     """Normaliza a UTC con zona horaria.
 
+    Dos casos distintos, y hacen falta los dos:
+
     SQLite no conserva la zona horaria, de modo que los valores leídos de la
-    base pueden volver «naive». Compararlos con datetimes conscientes de zona
-    lanza TypeError.
+    base vuelven «naive». Compararlos con datetimes conscientes de zona lanza
+    TypeError, así que se les asigna UTC, que es como se guardaron.
+
+    PostgreSQL sí la conserva, pero devuelve el valor en la zona de la sesión,
+    no en UTC: el mismo instante llega como «13:00-06:00» en vez de
+    «19:00+00:00». Son iguales al comparar, pero su isoformat() no lo es, y la
+    bitácora encadenada firma precisamente esa cadena. Sin convertir, la
+    verificación de integridad falla en cuanto se despliega contra PostgreSQL.
     """
     if valor is None:
         return None
-    return valor.replace(tzinfo=timezone.utc) if valor.tzinfo is None else valor
+    if valor.tzinfo is None:
+        return valor.replace(tzinfo=timezone.utc)
+    return valor.astimezone(timezone.utc)
 
 
 class Base(DeclarativeBase):

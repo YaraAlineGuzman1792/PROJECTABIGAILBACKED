@@ -140,3 +140,28 @@ def test_bitacora_intacta_tras_operar(cliente, token_admin):
     r = cliente.get("/v1/admin/integridad", headers=_auth(token_admin))
     assert r.status_code == 200
     assert r.json()["cadena_intacta"] is True
+
+
+# ---------------------------------------------------------------------------
+# Regresión: la bitácora encadenada firma la fecha en formato ISO, así que
+# como_utc tiene que CONVERTIR las fechas con zona, no sólo etiquetar las que
+# vienen sin ella. PostgreSQL devuelve los valores en la zona de la sesión;
+# sin conversión, el mismo instante produce dos cadenas distintas y la
+# verificación de integridad falla nada más desplegar.
+def test_como_utc_convierte_y_no_solo_etiqueta():
+    from datetime import datetime, timedelta, timezone
+
+    from app.models import como_utc
+
+    guatemala = timezone(timedelta(hours=-6))
+    con_zona = datetime(2026, 11, 7, 13, 0, 0, tzinfo=guatemala)
+
+    normalizado = como_utc(con_zona)
+
+    assert normalizado.utcoffset() == timedelta(0)
+    assert normalizado.isoformat() == "2026-11-07T19:00:00+00:00"
+    assert normalizado == con_zona            # mismo instante
+
+    sin_zona = datetime(2026, 11, 7, 19, 0, 0)
+    assert como_utc(sin_zona).isoformat() == "2026-11-07T19:00:00+00:00"
+    assert como_utc(None) is None
