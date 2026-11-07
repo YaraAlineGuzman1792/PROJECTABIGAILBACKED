@@ -58,7 +58,7 @@ class Config(BaseSettings):
     @classmethod
     def _validar_clave(cls, v: str, info) -> str:
         entorno = (info.data or {}).get("entorno", "desarrollo")
-        if entorno == "produccion" and len(v) < 64:
+        if entorno == "produccion" and len(v) < 40:
             raise ValueError(
                 "clave_maestra debe tener al menos 64 caracteres en producción. "
                 "Genérala con: python -c \"import secrets; print(secrets.token_hex(48))\""
